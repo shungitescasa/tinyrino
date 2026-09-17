@@ -53,6 +53,7 @@ struct MessagePreferences {
 
     bool enableRedeemedHighlight{};
     bool enableFirstMessageHighlight{};
+    bool enableEncryptedHighlight{};
     bool enableSubHighlight{};
     bool enableWatchStreakHighlight{};
     bool enableAutomodHighlight{};

@@ -1950,6 +1950,8 @@ std::pair<MessagePtrMut, HighlightAlert> MessageBuilder::makeIrcMessage(
             builder.emplace<BadgeElement>(
                 std::make_shared<const Emote>(std::move(emote)),
                 MessageElementFlag::Badges);
+            
+            builder->flags.set(MessageFlag::Encrypted);
         }
 
         builder.appendTwitchBadges(tags, twitchChannel);

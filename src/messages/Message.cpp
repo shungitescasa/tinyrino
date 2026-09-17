@@ -43,6 +43,13 @@ ScrollbarHighlight Message::getScrollBarHighlight() const
         };
     }
 
+    if (this->flags.has(MessageFlag::Encrypted) && getSettings()->enableEncryptedHighlight)
+    {
+        return {
+            ColorProvider::instance().color(ColorType::Encrypted),
+        };
+    }
+
     if (this->flags.has(MessageFlag::WatchStreak) &&
         getSettings()->enableWatchStreakHighlight)
     {

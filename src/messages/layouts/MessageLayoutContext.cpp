@@ -61,6 +61,12 @@ void MessagePreferences::connectSettings(Settings *settings,
             this->enableFirstMessageHighlight = newValue;
         },
         holder);
+    
+    settings->enableEncryptedHighlight.connect(
+        [this](const auto &newValue) {
+            this->enableEncryptedHighlight = newValue;
+        },
+        holder);
 
     settings->enableSubHighlight.connect(
         [this](const auto &newValue) {

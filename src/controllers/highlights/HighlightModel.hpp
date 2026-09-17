@@ -41,6 +41,7 @@ public:
         WatchStreakRow = 7,
         AnnouncementRow = 8,
         ColoredAnnouncementRow = 9,
+        EncryptedRow = 10,
     };
 
     enum UserHighlightRowIndexes {

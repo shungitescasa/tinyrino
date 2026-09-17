@@ -29,6 +29,10 @@ MessageFlagsPredicate::MessageFlagsPredicate(const QString &flags, bool negate)
         {
             this->flags_.set(MessageFlag::Highlighted);
         }
+        else if (flag == "encrypted")
+        {
+            this->flags_.set(MessageFlag::Encrypted);
+        }
         else if (flag == "system")
         {
             this->flags_.set(MessageFlag::System);

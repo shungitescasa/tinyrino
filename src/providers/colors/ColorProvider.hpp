@@ -30,6 +30,8 @@ enum class ColorType {
     AnnouncementGreen,
     AnnouncementOrange,
     AnnouncementPurple,
+
+    Encrypted,
 };
 
 ColorType colorTypeFromHelixAnnouncementColor(

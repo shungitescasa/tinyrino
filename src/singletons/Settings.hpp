@@ -944,6 +944,11 @@ public:
         "/encryption/encoding", EncryptionEncoding::Nothing};
     QStringSetting messagePassword = {"/encryption/messagePassword",
                                       "CHANGE_THIS"};
+
+
+    BoolSetting enableEncryptedHighlight = {
+        "/highlighting/encryptedHighlight/encryptedHighlighted", true};
+    QStringSetting encryptedColor = {"/highlighting/encryptedColor", ""};
 #ifndef Q_OS_WIN
     QStringSetting customNativeMessagingManifestPath{
         "/misc/extension/customManifestPath",

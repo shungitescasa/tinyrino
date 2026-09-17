@@ -410,6 +410,13 @@ void MessageLayout::updateBuffer(QPixmap *buffer,
                 blendColors(backgroundColor, *this->message_->highlightColor);
         }
     }
+    else if (this->message_->flags.has(MessageFlag::Encrypted) &&
+             ctx.preferences.enableEncryptedHighlight)
+    {
+        backgroundColor = blendColors(
+                backgroundColor,
+                *ctx.colorProvider.color(ColorType::Encrypted));
+    }
     else if (this->message_->flags.has(MessageFlag::Announcement) &&
              ctx.preferences.enableAnnouncementHighlight)
     {

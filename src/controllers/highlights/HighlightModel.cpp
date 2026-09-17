@@ -290,6 +290,17 @@ void HighlightModel::afterInit()
 
     this->insertCustomRow(coloredAnnouncementRow,
                           HighlightRowIndexes::ColoredAnnouncementRow);
+
+    // Highlight settings for encrypted messages
+    std::vector<QStandardItem *> encryptedRow = this->createRow();
+    setBoolItem(encryptedRow[Column::Pattern],
+                getSettings()->enableEncryptedHighlight.getValue(), true, false);
+    encryptedRow[Column::Pattern]->setData("Encrypted messages", Qt::DisplayRole);
+
+    auto encryptedColor = ColorProvider::instance().color(ColorType::Encrypted);
+    setColorItem(encryptedRow[Column::Color], *encryptedColor, false);
+
+    this->insertCustomRow(encryptedRow, HighlightRowIndexes::EncryptedRow);
 }
 
 void HighlightModel::customRowSetData(const std::vector<QStandardItem *> &row,
@@ -309,6 +320,10 @@ void HighlightModel::customRowSetData(const std::vector<QStandardItem *> &row,
                 {
                     getSettings()->enableWhisperHighlight.setValue(
                         value.toBool());
+                }
+                else if (rowIndex == HighlightRowIndexes::EncryptedRow)
+                {
+                    getSettings()->enableEncryptedHighlight.setValue(value.toBool());
                 }
                 else if (rowIndex == HighlightRowIndexes::SubRow)
                 {
@@ -514,6 +529,11 @@ void HighlightModel::customRowSetData(const std::vector<QStandardItem *> &row,
                 {
                     setColor(getSettings()->whisperHighlightColor,
                              ColorType::Whisper);
+                }
+                else if (rowIndex == HighlightRowIndexes::EncryptedRow)
+                {
+                    setColor(getSettings()->encryptedColor,
+                             ColorType::Encrypted);
                 }
                 else if (rowIndex == HighlightRowIndexes::SubRow)
                 {
