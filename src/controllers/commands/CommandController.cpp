@@ -268,6 +268,7 @@ const std::unordered_map<QString, VariableReplacer> COMMAND_VARS{
     },
     // variables used in mod buttons and the like, these make no sense in normal commands, so they are left empty
     {"input.text", NO_OP_PLACEHOLDER},
+    {"element.copytext", NO_OP_PLACEHOLDER},
 };
 
 }  // namespace
@@ -503,6 +504,9 @@ CommandController::CommandController(const Paths &paths)
     this->registerCommand("/debug-enable-logfile", &commands::enableLogfile);
     this->registerCommand("/debug-relaunch-with-logfile",
                           &commands::relaunchWithLogfile);
+
+    this->registerCommand("/debug-seventv-presence",
+                          &commands::seventvPresence);
 
     this->registerCommand("/shield", &commands::shieldModeOn);
     this->registerCommand("/shieldoff", &commands::shieldModeOff);

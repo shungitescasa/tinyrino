@@ -10,6 +10,7 @@
 #include "messages/MessageElement.hpp"
 #include "messages/MessageThread.hpp"
 #include "providers/bttv/BttvEmotes.hpp"
+#include "providers/chatterino/ChatterinoBadges.hpp"
 #include "providers/emoji/Emojis.hpp"
 #include "providers/ffz/FfzEmotes.hpp"
 #include "providers/kick/KickAccount.hpp"
@@ -36,7 +37,7 @@ using namespace Qt::Literals;
 EmotePtr lookupEmote(const KickChannel &channel, uint64_t senderID,
                      QStringView word)
 {
-    EmoteName wordStr(word.toString());  // FIXME: don't do this...
+    EmoteName wordStr{word.toString()};  // FIXME: don't do this...
     const auto *globalFfzEmotes = getApp()->getFfzEmotes();
     const auto *globalBttvEmotes = getApp()->getBttvEmotes();
     const auto *globalSeventvEmotes = getApp()->getSeventvEmotes();
@@ -339,24 +340,62 @@ void appendReplyButtons(KickMessageBuilder &builder)
     }
 }
 
-void appendKickBadges(KickMessageBuilder &builder, BoostJsonArray badges)
+void appendKickBadges(KickMessageBuilder &builder, BoostJsonArray badgesArr)
 {
+    struct BadgeItem {
+        std::string_view type;
+        uint32_t count;
+        uint16_t order;
+    };
+    QVarLengthArray<BadgeItem, 8> badges;
+    badges.reserve(static_cast<qsizetype>(badgesArr.size()));
+    for (auto badgeObj : badgesArr)
+    {
+        badges.emplace_back(BadgeItem{
+            .type = badgeObj["type"].toStringView(),
+            .count = static_cast<uint32_t>(badgeObj["count"].toUint64(1)),
+            .order = static_cast<uint16_t>(badgeObj["sort_order"].toUint64(0)),
+        });
+    }
+    std::ranges::sort(badges, [](const auto &a, const auto &b) {
+        return a.order < b.order;
+    });
+
     bool hasMod = false;
     bool hasVip = false;
-    for (auto badgeObj : badges)
+    for (auto badgeItem : badges)
     {
-        auto ty = badgeObj["type"].toStringView();
-        auto [emote, flag] = KickBadges::lookup(ty);
+        if (badgeItem.type == "subscriber")
+        {
+            auto badge = builder.channel()->getSubBadge(badgeItem.count);
+            if (badge)
+            {
+                builder.emplace<BadgeElement>(
+                    std::move(badge), MessageElementFlag::BadgeSubscription);
+                continue;
+            }
+        }
+        else if (badgeItem.type == "sub_gifter")
+        {
+            auto badge = KickBadges::lookupSubGifter(badgeItem.count);
+            if (badge)
+            {
+                builder.emplace<BadgeElement>(std::move(badge),
+                                              MessageElementFlag::BadgeVanity);
+                continue;
+            }
+        }
+        auto [emote, flag] = KickBadges::lookup(badgeItem.type);
         if (!emote)
         {
             continue;
         }
 
-        if (ty == "moderator")
+        if (badgeItem.type == "moderator")
         {
             hasMod = true;
         }
-        else if (ty == "vip")
+        else if (badgeItem.type == "vip")
         {
             hasVip = true;
         }
@@ -373,12 +412,41 @@ void appendKickBadges(KickMessageBuilder &builder, BoostJsonArray badges)
     }
 }
 
+void appendKickV2Badges(KickMessageBuilder &builder, BoostJsonArray badges)
+{
+    // FIXME: respect order
+    for (auto badgeObj : badges)
+    {
+        bool selected = badgeObj["selected"].toBool();
+        if (!selected)
+        {
+            continue;
+        }
+        auto [emote, flag] = KickBadges::getV2Cached(badgeObj.toObject());
+
+        builder.emplace<BadgeElement>(emote, flag);
+    }
+}
+
 void appendSeventvBadge(KickMessageBuilder &builder)
 {
     auto badge = getApp()->getSeventvBadges()->getKickBadge(builder.senderID);
     if (badge)
     {
         builder.emplace<BadgeElement>(*badge, MessageElementFlag::BadgeSevenTV);
+    }
+}
+
+void appendChatterinoBadge(KickMessageBuilder &builder)
+{
+    if (auto badge =
+            getApp()->getChatterinoBadges()->getKickBadge(builder.senderID))
+    {
+        builder.emplace<BadgeElement>(badge,
+                                      MessageElementFlag::BadgeChatterino);
+
+        /// e.g. "chatterino:Chatterino Top donator"
+        builder->externalBadges.emplace_back(badge->name.string);
     }
 }
 
@@ -472,7 +540,6 @@ std::pair<MessagePtrMut, HighlightAlert> KickMessageBuilder::makeChatMessage(
     builder->id = id;
     builder->serverReceivedTime =
         QDateTime::fromString(createdAt, Qt::DateFormat::ISODate).toLocalTime();
-    builder->parseTime = QTime::currentTime();
     builder->displayName = sender["username"].toQString();
     builder->loginName = builder->displayName.toLower();
     builder.senderID = sender["id"].toUint64();
@@ -488,7 +555,9 @@ std::pair<MessagePtrMut, HighlightAlert> KickMessageBuilder::makeChatMessage(
     builder.emplace<TimestampElement>(builder->serverReceivedTime.time());
     builder.emplace<TwitchModerationElement>();
 
+    appendKickV2Badges(builder, identity["badges_v2"].toArray());
     appendKickBadges(builder, identity["badges"].toArray());
+    appendChatterinoBadge(builder);
     appendSeventvBadge(builder);
 
     builder.appendUsername(identity);
@@ -504,8 +573,6 @@ std::pair<MessagePtrMut, HighlightAlert> KickMessageBuilder::makeChatMessage(
     builder->messageText = messageText;
 
     MessageParseArgs args;
-    args.isStaffOrBroadcaster = kickChannel->isBroadcaster();
-
     auto highlightAlert = processHighlights(builder, args);
 
     return {builder.release(), highlightAlert};
@@ -735,7 +802,6 @@ std::tuple<MessagePtrMut, MessagePtrMut, HighlightAlert>
 
         MessageParseArgs args;
         args.isSubscriptionMessage = true;
-        args.isStaffOrBroadcaster = channel->isBroadcaster();
         alert = processHighlights(builder, args);
         customMessage = builder.release();
     }

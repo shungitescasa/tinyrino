@@ -44,7 +44,7 @@ public:
 
     std::shared_ptr<const EmoteMap> emotes(const QString &instanceUrl) const;
     std::optional<EmotePtr> emote(const QString &instanceUrl,
-                                  const EmoteName &name) const;
+                                EmoteNameView name) const;
     void loadEmotes();
     void setEmotes(const QString &instanceUrl,
                    std::shared_ptr<const EmoteMap> emotes);

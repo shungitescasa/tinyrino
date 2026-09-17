@@ -328,7 +328,7 @@ std::shared_ptr<const EmoteMap> TinyEmotes::emotes(
 }
 
 std::optional<EmotePtr> TinyEmotes::emote(const QString &instanceUrl,
-                                          const EmoteName &name) const
+                                        EmoteNameView name) const
 {
     auto it = this->global_.find(instanceUrl);
     if (it == this->global_.end())
