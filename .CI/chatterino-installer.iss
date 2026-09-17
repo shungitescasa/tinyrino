@@ -2,8 +2,8 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Tinyrino"
-#define MyAppVersion "2.5.5.3"
-#define MyAppPublisher "ilotterytea"
+#define MyAppVersion "2.5.5.5"
+#define MyAppPublisher "shungites.casa"
 #define MyAppURL "https://www.chatterino.com"
 #define MyAppExeName "chatterino.exe"
 
@@ -84,8 +84,8 @@ Source: "{#WORKING_DIR}vc_redist.{#VCRT_ARCH}.exe"; DestDir: "{tmp}"; Tasks: vcr
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
-Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; AppUserModelID: "ilotterytea.Tinyrino"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; AppUserModelID: "ilotterytea.Tinyrino"; Tasks: desktopicon
+Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; AppUserModelID: "shungites.casa.Tinyrino"
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; AppUserModelID: "shungites.casa.Tinyrino"; Tasks: desktopicon
 
 [Run]
 ; VC++ redistributable

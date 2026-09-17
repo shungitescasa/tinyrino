@@ -1310,9 +1310,9 @@ if (APPLE AND BUILD_APP)
     set_target_properties(${EXECUTABLE_PROJECT} PROPERTIES MACOSX_BUNDLE TRUE)
     set_target_properties(${EXECUTABLE_PROJECT}
         PROPERTIES
-        MACOSX_BUNDLE_BUNDLE_NAME "Chatterino 7TV"
+        MACOSX_BUNDLE_BUNDLE_NAME "Tinyrino"
         # Keep this for backwards compatibility
-        MACOSX_BUNDLE_GUI_IDENTIFIER "app.7tv.chatterino7"
+        MACOSX_BUNDLE_GUI_IDENTIFIER "casa.shungites.tinyrino"
         MACOSX_BUNDLE_LONG_VERSION_STRING "${PROJECT_VERSION}"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}"
         MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"

@@ -1,7 +1,7 @@
-![chatterinoLogo](/icon.png) Tinyrino [![GitHub Actions Build (Windows, Ubuntu, MacOS)](https://github.com/ilotterytea/tinyrino/actions/workflows/build.yml/badge.svg?branch=tinyrino)](https://github.com/ilotterytea/tinyrino/actions?query=workflow%3ABuild+branch%3Atinyrino)
+![chatterinoLogo](/icon.png) Tinyrino [![GitHub Actions Build (Windows, Ubuntu, MacOS)](https://github.com/shungitescasa/tinyrino/actions/workflows/build.yml/badge.svg?branch=tinyrino)](https://github.com/shungitescasa/tinyrino/actions?query=workflow%3ABuild+branch%3Atinyrino)
 ============
 
-Tinyrino is a fork of Chatterino7 (which is a fork of Chatterino 2). This fork supports [TinyEmotes](https://github.com/ilotterytea/tinyemotes), a software that allows you to host your emotes on your own instances.
+Tinyrino is a fork of Chatterino7 (which is a fork of Chatterino 2). This fork supports [TinyEmotes](https://github.com/shungitescasa/tinyemotes), a software that allows you to host your emotes on your own instances.
 
 ### Features of Tinyrino
 
@@ -22,15 +22,15 @@ Tinyrino is a fork of Chatterino7 (which is a fork of Chatterino 2). This fork s
 
 ### Downloads
 
-**Stable builds** can be downloaded from the [releases section](https://github.com/ilotterytea/tinyrino/releases/latest).
+**Stable builds** can be downloaded from the [releases section](https://github.com/shungitescasa/tinyrino/releases/latest).
 
-To test new features, you can download the **nightly build** [here](https://github.com/ilotterytea/tinyrino/releases/tag/nightly-build).
+To test new features, you can download the **nightly build** [here](https://github.com/shungitescasa/tinyrino/releases/tag/nightly-build).
 
 <!--Windows users can install Chatterino7 [from Chocolatey](https://chocolatey.org/packages/chatterino7).-->
 
 ### Issues
 
-If you have issues such as crashes or weird behaviour regarding TinyEmotes features, report them [in the issue-section](https://github.com/ilotterytea/tinyrino/issues). If you have issues with other features, please report them [in the upstream issue-section](https://github.com/Chatterino/chatterino2/issues).
+If you have issues such as crashes or weird behaviour regarding TinyEmotes features, report them [in the issue-section](https://github.com/shungitescasa/tinyrino/issues). If you have issues with other features, please report them [in the upstream issue-section](https://github.com/Chatterino/chatterino2/issues).
 
 ### AVIF Support
 
@@ -59,13 +59,13 @@ If you still receive an error about `MSVCR120.dll missing`, then you should inst
 To get source code with required submodules run:
 
 ```shell
-git clone --recurse-submodules https://github.com/ilotterytea/tinyrino.git
+git clone --recurse-submodules https://github.com/shungitescasa/tinyrino.git
 ```
 
 or
 
 ```shell
-git clone https://github.com/ilotterytea/tinyrino.git
+git clone https://github.com/shungitescasa/tinyrino.git
 cd tinyrino
 git submodule update --init --recursive
 ```

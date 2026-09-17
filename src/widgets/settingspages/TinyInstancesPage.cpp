@@ -34,7 +34,7 @@ TinyInstancesPage::TinyInstancesPage()
             "from different TinyEmotes instances.\nYou can add an existing "
             "instance here or self-host your own!");
         auto linkLabel = emoteInstancesTab.emplace<QLabel>(
-            "<a href='https://github.com/ilotterytea/tinyemotes' "
+            "<a href='https://github.com/shungitescasa/tinyemotes' "
             "style='color:#99f'>More info...</a>");
         linkLabel->setOpenExternalLinks(true);
 

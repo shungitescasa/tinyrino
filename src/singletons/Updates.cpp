@@ -454,7 +454,7 @@ void Updates::checkForUpdates()
             .execute();
     };
 
-    makeRequest(QString("https://assets.ilt.su/tinyrino/"
+    makeRequest(QString("https://assets.shungites.casa/tinyrino/"
                         "version.php?os=%1&branch=%2")
                     .arg(CHATTERINO_OS)
                     .arg(currentBranch()));
