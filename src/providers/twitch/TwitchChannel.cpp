@@ -139,27 +139,32 @@ TwitchChannel::TwitchChannel(const QString &name)
                                   std::make_shared<EmoteMap>());
     }
 
-    getSettings()->tinyemotesInstances.itemRemoved.connect(
+    this->signalHolder_.managedConnect(
+        getSettings()->tinyemotesInstances.itemRemoved,
         [this](const auto &instance) {
             auto instances = getSettings()->tinyemotesInstances.readOnly();
-            int count =
-                std::count_if(instances->begin(), instances->end(),
-                              [&instance](const auto &x) {
-                                  return x.getUrl() == instance.item.getUrl();
-                              });
+            int count = std::count_if(
+                instances->begin(), instances->end(),
+                [&instance](const auto &x) {
+                    return x.getUrl() == instance.item.getUrl();
+                });
 
             if (count <= 1)
             {
                 auto it = this->tinyEmotes_.find(instance.item.getUrl());
-                this->tinyEmotes_.erase(it);
+                if (it != this->tinyEmotes_.end())
+                {
+                    this->tinyEmotes_.erase(it);
+                }
             }
-        });
-
-    getSettings()->tinyemotesInstances.itemInserted.connect(
+    });
+    
+    this->signalHolder_.managedConnect(
+        getSettings()->tinyemotesInstances.itemInserted,
         [this](const auto &instance) {
             this->tinyEmotes_.insert(std::make_pair(
                 instance.item.getUrl(), std::make_shared<EmoteMap>()));
-        });
+    });
 
     this->signalHolder_.managedConnect(
         getApp()->getAccounts()->twitch.currentUserAboutToChange,
