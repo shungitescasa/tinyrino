@@ -35,9 +35,9 @@ namespace tinyemotes::detail {
 class TinyEmotes final
 {
     static constexpr const char *tinyemotesGlobalEmotesApiUrl =
-        "%1%2/emotesets.php?id=global";
+        "%1%2/emotesets/global";
     static constexpr const char *tinyemotesUserApiUrl =
-        "%1%2/users.php?alias_id=%3";
+        "%1%2/users/twitch/%3";
 
 public:
     TinyEmotes();

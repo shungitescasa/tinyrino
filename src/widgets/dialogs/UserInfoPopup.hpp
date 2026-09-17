@@ -24,7 +24,7 @@ namespace chatterino {
 inline static const QString SEVENTV_USER_API =
     "https://7tv.io/v3/users/twitch/%1";
 
-inline static const QString TINYEMOTES_USER_API = "%1%2/users.php?alias_id=%3";
+inline static const QString TINYEMOTES_USER_API = "%1%2/users/twitch/%3";
 inline static const QString TINYEMOTES_AVATAR_API =
     "%1%2/static/userdata/avatars/%3/3x.webp";
 

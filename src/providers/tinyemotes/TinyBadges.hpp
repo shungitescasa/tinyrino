@@ -16,9 +16,9 @@ namespace chatterino {
 struct Emote;
 using EmotePtr = std::shared_ptr<const Emote>;
 
-const QString TINYEMOTES_BADGES_API = "%1%2/badges.php";
+const QString TINYEMOTES_BADGES_API = "%1%2/badges";
 const QString TINYEMOTES_BADGE_IMG_API =
-    "%1%2/static/userdata/badges/%3/%4.webp";
+    "%1%2/static/userdata/emotes/%3/%4.webp";
 
 class TinyBadges
 {

@@ -455,7 +455,7 @@ void Updates::checkForUpdates()
     };
 
     makeRequest(QString("https://assets.shungites.casa/tinyrino/"
-                        "version.php?os=%1&branch=%2")
+                        "version?os=%1&branch=%2")
                     .arg(CHATTERINO_OS)
                     .arg(currentBranch()));
 

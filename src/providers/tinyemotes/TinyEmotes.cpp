@@ -35,7 +35,7 @@ const QString CHANNEL_HAS_NO_EMOTES("This channel has no %1 channel emotes.");
 ///
 /// %1 being the instance URL
 /// %2 being the emote ID (e.g. 1, 123, 456789)
-constexpr QStringView EMOTE_LINK_FORMAT = u"%1%2/emotes?id=%3";
+constexpr QStringView EMOTE_LINK_FORMAT = u"%1%2/emotes/%3";
 
 /// The emote CDN link template.
 ///
