@@ -401,60 +401,7 @@ UserInfoPopup::UserInfoPopup(bool closeAutomatically, Split *split)
         switchAv->hide();
         QObject::connect(
             switchAv.getElement(), &LabelButton::leftClicked, [this] {
-                if (!this->seventvAvatar_ && !this->tinyAvatar_)
-                {
-                    this->ui_.switchAvatars->hide();
-                    return;
-                }
-
-                this->currentShownAvatar_++;
-                if (!this->seventvAvatar_ && this->currentShownAvatar_ == 1)
-                {
-                    this->currentShownAvatar_ = 2;
-                }
-
-                if (this->currentShownAvatar_ > 2 ||
-                    (!this->tinyAvatar_ && this->currentShownAvatar_ > 1))
-                {
-                    this->currentShownAvatar_ = 0;
-                }
-
-                if (this->currentShownAvatar_ == 0)
-                {
-                    if (this->tinyAvatar_)
-                    {
-                        this->tinyAvatar_->stop();
-                        this->ui_.switchAvatars->setText("Show TinyEmotes");
-                    }
-                    if (this->seventvAvatar_)
-                    {
-                        this->seventvAvatar_->stop();
-                        this->ui_.switchAvatars->setText("Show 7TV");
-                    }
-                    this->ui_.avatarButton->setPixmap(this->avatarPixmap_);
-                }
-                else if (this->currentShownAvatar_ == 1)
-                {
-                    this->ui_.avatarButton->setPixmap(
-                        this->seventvAvatar_->currentPixmap());
-                    this->seventvAvatar_->start();
-
-                    this->ui_.switchAvatars->setText(
-                        this->tinyAvatar_ ? "Show TinyEmotes" : "Show Twitch");
-                }
-                else
-                {
-                    if (this->seventvAvatar_)
-                    {
-                        this->seventvAvatar_->stop();
-                    }
-                    this->tinyAvatar_->start();
-                    this->ui_.avatarButton->setPixmap(
-                        this->tinyAvatar_->currentPixmap());
-                    this->ui_.switchAvatars->setText(u"Show " %
-                                                     this->platformName());
-                }
-                this->updateAvatarUrl();
+                this->showAvatar(this->nextAvatarIndex());
             });
 
         auto vbox = head.emplace<QVBoxLayout>();
@@ -1372,17 +1319,31 @@ void UserInfoPopup::loadAvatar(const QString &userID, const QString &pictureURL,
         this->loadSevenTVAvatar(userID, isKick);
     }
 
-    // TODO: show user avatar for every instance
-    this->tinyAvatarUrls_.clear();
-    const auto &instances = getSettings()->tinyemotesInstances.readOnly();
-    const auto &instance =
-        std::find_if(instances->begin(), instances->end(), [](const auto &x) {
-            return x.isAvatarEnabled();
-        });
-
-    if (instance != instances->end())
+    for (auto &avatar : this->tinyAvatars_)
     {
-        this->loadTinyAvatar(instance->getUrl(), userID);
+        avatar.movie->deleteLater();
+    }
+    this->tinyAvatars_.clear();
+    if (this->currentShownAvatar_ >= 2)
+    {
+        this->showAvatar(0);
+    }
+    else
+    {
+        this->updateSwitchAvatarsButton();
+    }
+
+    QSet<QString> requestedInstances;
+    const auto instances = getSettings()->tinyemotesInstances.readOnly();
+    for (const auto &instance : *instances)
+    {
+        if (!instance.isAvatarEnabled() ||
+            requestedInstances.contains(instance.getUrl()))
+        {
+            continue;
+        }
+        requestedInstances.insert(instance.getUrl());
+        this->loadTinyAvatar(instance.getUrl(), userID);
     }
 }
 
@@ -1483,13 +1444,22 @@ void UserInfoPopup::loadTinyAvatar(const QString &instanceUrl,
     NetworkRequest(TINYEMOTES_USER_API.arg(prefix, instanceUrl, userID))
         .header("Accept", "application/json")
         .timeout(20000)
-        .onSuccess([this, prefix, instanceUrl](const NetworkResult &result) {
+        .onSuccess([this, prefix, instanceUrl,
+                    hack = std::weak_ptr<bool>(this->lifetimeHack_)](
+                       const NetworkResult &result) {
+            if (!hack.lock())
+            {
+                return;
+            }
+
             auto root = result.parseJson();
             auto id = root["data"].toObject()["id"].toString();
+            if (id.isEmpty())
+            {
+                return;
+            }
 
             auto url = TINYEMOTES_AVATAR_API.arg(prefix, instanceUrl, id);
-
-            this->tinyAvatarUrls_.emplace(instanceUrl, url);
 
             // We're implementing custom caching here,
             // because we need the cached file path.
@@ -1504,7 +1474,7 @@ void UserInfoPopup::loadTinyAvatar(const QString &instanceUrl,
             QFile cacheFile(filename);
             if (cacheFile.exists())
             {
-                this->setTinyAvatar(filename);
+                this->setTinyAvatar(instanceUrl, url, filename);
                 return;
             }
 
@@ -1516,12 +1486,13 @@ void UserInfoPopup::loadTinyAvatar(const QString &instanceUrl,
             auto *reply = manager->get(req);
 
             QObject::connect(reply, &QNetworkReply::finished, this,
-                             [this, reply, url, filename] {
+                             [this, reply, instanceUrl, url, filename] {
                                  if (reply->error() == QNetworkReply::NoError)
                                  {
                                      this->saveCacheAvatar(reply->readAll(),
                                                            filename);
-                                     this->setTinyAvatar(filename);
+                                     this->setTinyAvatar(instanceUrl, url,
+                                                         filename);
                                  }
                                  else
                                  {
@@ -1536,26 +1507,54 @@ void UserInfoPopup::loadTinyAvatar(const QString &instanceUrl,
         .execute();
 }
 
-void UserInfoPopup::setTinyAvatar(const QString &filename)
+void UserInfoPopup::setTinyAvatar(const QString &instanceUrl,
+                                  const QString &url, const QString &filename)
 {
     auto *movie = new QMovie(filename, "webp", this);
     if (!movie->isValid())
     {
         qCWarning(chatterinoTinyemotes)
             << "Error reading Profile Picture, " << movie->lastErrorString();
+        movie->deleteLater();
         return;
     }
 
     QObject::connect(movie, &QMovie::frameChanged, this, [this, movie] {
-        this->ui_.avatarButton->setPixmap(movie->currentPixmap());
+        if (this->avatarMovie(this->currentShownAvatar_) == movie)
+        {
+            this->ui_.avatarButton->setPixmap(movie->currentPixmap());
+        }
     });
 
-    movie->start();
-    this->tinyAvatar_ = movie;
-    this->ui_.switchAvatars->show();
-    this->ui_.switchAvatars->setText("Show Twitch");
-    this->currentShownAvatar_ = 2;
-    this->updateAvatarUrl();
+    auto it = std::find_if(this->tinyAvatars_.begin(), this->tinyAvatars_.end(),
+                           [&instanceUrl](const auto &avatar) {
+                               return avatar.instanceUrl == instanceUrl;
+                           });
+    int index = 0;
+    bool wasShown = false;
+    if (it != this->tinyAvatars_.end())
+    {
+        index = static_cast<int>(it - this->tinyAvatars_.begin()) + 2;
+        wasShown = this->currentShownAvatar_ == index;
+        it->movie->deleteLater();
+        it->url = url;
+        it->movie = movie;
+    }
+    else
+    {
+        this->tinyAvatars_.push_back({instanceUrl, url, movie});
+        index = static_cast<int>(this->tinyAvatars_.size()) + 1;
+    }
+
+    // Show the first TinyEmotes avatar that arrives
+    if (wasShown || this->currentShownAvatar_ < 2)
+    {
+        this->showAvatar(index);
+    }
+    else
+    {
+        this->updateSwitchAvatarsButton();
+    }
 }
 
 void UserInfoPopup::setSevenTVAvatar(const QString &filename,
@@ -1570,19 +1569,107 @@ void UserInfoPopup::setSevenTVAvatar(const QString &filename,
     }
 
     QObject::connect(movie, &QMovie::frameChanged, this, [this, movie] {
-        if (this->currentShownAvatar_ == 2)
+        if (this->avatarMovie(this->currentShownAvatar_) == movie)
         {
-            return;
+            this->ui_.avatarButton->setPixmap(movie->currentPixmap());
         }
-        this->ui_.avatarButton->setPixmap(movie->currentPixmap());
     });
 
-    movie->start();
+    if (this->seventvAvatar_)
+    {
+        this->seventvAvatar_->deleteLater();
+    }
     this->seventvAvatar_ = movie;
-    this->ui_.switchAvatars->show();
-    this->ui_.switchAvatars->setText("Show Twitch");
     this->isTwitchAvatarShown_ = false;
+    if (this->currentShownAvatar_ <= 1)
+    {
+        this->showAvatar(1);
+    }
+    else
+    {
+        this->updateSwitchAvatarsButton();
+    }
+}
+
+QMovie *UserInfoPopup::avatarMovie(int index) const
+{
+    if (index == 1)
+    {
+        return this->seventvAvatar_;
+    }
+    if (index >= 2 && static_cast<size_t>(index - 2) < this->tinyAvatars_.size())
+    {
+        return this->tinyAvatars_[index - 2].movie;
+    }
+    return nullptr;
+}
+
+QString UserInfoPopup::avatarSourceName(int index) const
+{
+    if (index == 1)
+    {
+        return u"7TV"_s;
+    }
+    if (index >= 2 && static_cast<size_t>(index - 2) < this->tinyAvatars_.size())
+    {
+        return this->tinyAvatars_[index - 2].instanceUrl;
+    }
+    return this->platformName().toString();
+}
+
+int UserInfoPopup::nextAvatarIndex() const
+{
+    auto count = static_cast<int>(this->tinyAvatars_.size()) + 2;
+    auto next = (this->currentShownAvatar_ + 1) % count;
+    if (next == 1 && !this->seventvAvatar_)
+    {
+        next = (next + 1) % count;
+    }
+    return next;
+}
+
+void UserInfoPopup::showAvatar(int index)
+{
+    this->currentShownAvatar_ = index;
+
+    auto *shown = this->avatarMovie(index);
+    if (this->seventvAvatar_ && this->seventvAvatar_ != shown)
+    {
+        this->seventvAvatar_->stop();
+    }
+    for (const auto &avatar : this->tinyAvatars_)
+    {
+        if (avatar.movie != shown)
+        {
+            avatar.movie->stop();
+        }
+    }
+
+    if (shown)
+    {
+        shown->start();
+        this->ui_.avatarButton->setPixmap(shown->currentPixmap());
+    }
+    else
+    {
+        this->ui_.avatarButton->setPixmap(this->avatarPixmap_);
+    }
+
+    this->updateSwitchAvatarsButton();
     this->updateAvatarUrl();
+}
+
+void UserInfoPopup::updateSwitchAvatarsButton()
+{
+    auto next = this->nextAvatarIndex();
+    if (next == this->currentShownAvatar_)
+    {
+        this->ui_.switchAvatars->hide();
+        return;
+    }
+
+    this->ui_.switchAvatars->setText(u"Show " % this->avatarSourceName(next));
+    this->ui_.switchAvatars->show();
 }
 
 void UserInfoPopup::saveCacheAvatar(const QByteArray &avatar,
@@ -2001,9 +2088,15 @@ void UserInfoPopup::updateAvatarUrl()
     {
         this->avatarUrl_ = this->seventvAvatarUrl_;
     }
+    else if (static_cast<size_t>(this->currentShownAvatar_ - 2) <
+             this->tinyAvatars_.size())
+    {
+        this->avatarUrl_ =
+            this->tinyAvatars_[this->currentShownAvatar_ - 2].url;
+    }
     else
     {
-        this->avatarUrl_ = this->tinyAvatarUrls_.begin()->second;
+        this->avatarUrl_ = this->helixAvatarUrl_;
     }
 }
 

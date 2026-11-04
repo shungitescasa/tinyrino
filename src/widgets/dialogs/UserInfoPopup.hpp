@@ -73,7 +73,14 @@ private:
     void setSevenTVAvatar(const QString &filename, const QByteArray &format);
 
     void loadTinyAvatar(const QString &instanceUrl, const QString &userID);
-    void setTinyAvatar(const QString &filename);
+    void setTinyAvatar(const QString &instanceUrl, const QString &url,
+                       const QString &filename);
+
+    QMovie *avatarMovie(int index) const;
+    QString avatarSourceName(int index) const;
+    int nextAvatarIndex() const;
+    void showAvatar(int index);
+    void updateSwitchAvatarsButton();
 
     void saveCacheAvatar(const QByteArray &avatar,
                          const QString &filename) const;
@@ -97,7 +104,6 @@ private:
     QString avatarUrl_;
     QString helixAvatarUrl_;
     QString seventvAvatarUrl_;
-    std::map<QString, QString> tinyAvatarUrls_;
     QString seventvUserID_;
 
     QString kickUserSlug_;
@@ -152,8 +158,14 @@ private:
     } ui_;
 
     QMovie *seventvAvatar_ = nullptr;
-    QMovie *tinyAvatar_ = nullptr;
-    int currentShownAvatar_ = 0;  // 0 - Twitch, 1 - 7TV, 2 - TinyEmotes
+    struct TinyAvatar {
+        QString instanceUrl;
+        QString url;
+        QMovie *movie = nullptr;
+    };
+    std::vector<TinyAvatar> tinyAvatars_;
+    // 0 - Twitch/Kick, 1 - 7TV, 2+ - TinyEmotes (index into tinyAvatars_ + 2)
+    int currentShownAvatar_ = 0;
     QPixmap avatarPixmap_;
     QPointer<EditUserNotesDialog> editUserNotesDialog_;
 
