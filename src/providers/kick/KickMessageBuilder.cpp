@@ -20,7 +20,6 @@
 #include "providers/seventv/SeventvBadges.hpp"
 #include "providers/seventv/SeventvEmotes.hpp"
 #include "providers/seventv/SeventvPersonalEmotes.hpp"
-#include "providers/twitch/TwitchAccount.hpp"
 #include "providers/twitch/TwitchBadge.hpp"
 #include "singletons/Resources.hpp"
 #include "singletons/Settings.hpp"
@@ -459,9 +458,23 @@ HighlightAlert processHighlights(KickMessageBuilder &builder,
         return {};
     }
 
-    auto [highlighted, highlightResult] = getApp()->getHighlights()->check(
-        args, {}, builder->loginName, builder->messageText, builder->flags,
-        builder->platform);
+    auto currentUser = getApp()->getAccounts()->kick.current();
+    bool self = !currentUser->isAnonymous() &&
+                builder->loginName == currentUser->username();
+    auto [highlighted, highlightResult] = getApp()->getHighlights()->check({
+        .args = args,
+        .twitchBadges = {},
+        .senderName = builder->loginName,
+        .originalMessage = builder->messageText,
+        .messageFlags = builder->flags,
+        .self = self,
+        .runContext =
+            filters::RunContext{
+                .message = builder.message(),
+                .channel = builder.channel(),
+            },
+        .platform = builder->platform,
+    });
 
     if (!highlighted)
     {
@@ -469,18 +482,15 @@ HighlightAlert processHighlights(KickMessageBuilder &builder,
     }
 
     // This message triggered one or more highlights, act upon the highlight result
-
     builder->flags.set(MessageFlag::Highlighted);
     builder->highlightColor = highlightResult.color;
-
     if (highlightResult.showInMentions)
     {
         builder->flags.set(MessageFlag::ShowInMentions);
     }
 
     return {
-        .customSound = highlightResult.customSoundUrl.value_or(QUrl{}),
-        .playSound = highlightResult.playSound,
+        .sound = highlightResult.sound,
         .windowAlert = highlightResult.alert,
     };
 }
@@ -507,7 +517,7 @@ KickMessageBuilder::KickMessageBuilder(SystemMessageTag /* tag */,
     this->emplace<TimestampElement>(time.time());
     this->message().flags.set(MessageFlag::System);
     this->message().platform = MessagePlatform::Kick;
-    this->message().serverReceivedTime = time;
+    this->message().timestamp = time;
 }
 
 KickMessageBuilder::KickMessageBuilder(KickChannel *channel,
@@ -516,7 +526,7 @@ KickMessageBuilder::KickMessageBuilder(KickChannel *channel,
 {
     this->emplace<TimestampElement>(time.time());
     this->message().platform = MessagePlatform::Kick;
-    this->message().serverReceivedTime = time;
+    this->message().timestamp = time;
 }
 
 KickMessageBuilder::KickMessageBuilder(KickChannel *channel)
@@ -538,7 +548,7 @@ std::pair<MessagePtrMut, HighlightAlert> KickMessageBuilder::makeChatMessage(
     KickMessageBuilder builder(kickChannel);
     builder->channelName = kickChannel->getName();
     builder->id = id;
-    builder->serverReceivedTime =
+    builder->timestamp =
         QDateTime::fromString(createdAt, Qt::DateFormat::ISODate).toLocalTime();
     builder->displayName = sender["username"].toQString();
     builder->loginName = builder->displayName.toLower();
@@ -552,7 +562,7 @@ std::pair<MessagePtrMut, HighlightAlert> KickMessageBuilder::makeChatMessage(
 
     builder.appendChannelName();
 
-    builder.emplace<TimestampElement>(builder->serverReceivedTime.time());
+    builder.emplace<TimestampElement>(builder->timestamp.time());
     builder.emplace<TwitchModerationElement>();
 
     appendKickV2Badges(builder, identity["badges_v2"].toArray());
@@ -788,7 +798,7 @@ std::tuple<MessagePtrMut, MessagePtrMut, HighlightAlert>
     if (!customMessageText.isEmpty())
     {
         KickMessageBuilder builder(channel);
-        builder->serverReceivedTime = now;
+        builder->timestamp = now;
         builder->flags.set(MessageFlag::Subscription);
         builder->loginName = username;
 

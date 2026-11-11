@@ -16,7 +16,8 @@ TinyemotesInstanceModel ::TinyemotesInstanceModel(QObject *parent)
 
 // turn a vector item into a model row
 TinyemotesInstance TinyemotesInstanceModel::getItemFromRow(
-    std::vector<QStandardItem *> &row, const TinyemotesInstance &original)
+    std::vector<QStandardItem *> &row, const TinyemotesInstance &original,
+    std::optional<QModelIndex> index, std::optional<int> role)
 {
     return {row[Column::Url]->data(Qt::DisplayRole).toString(),
             row[Column::GlobalEmotes]->data(Qt::CheckStateRole).toBool(),

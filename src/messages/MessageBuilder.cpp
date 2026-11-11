@@ -108,9 +108,10 @@ const std::unordered_map<QString, HypeChatPaidLevel> HYPE_CHAT_PAID_LEVEL{
 
 /// MessageFlag::Subscription message types
 const QSet<QString> SUB_MESSAGE_TYPES{
-    "sub",      //
-    "subgift",  //
-    "resub",    // resub messages
+    "sub",             //
+    "subgift",         //
+    "resub",           // resub messages
+    "submysterygift",  //
 };
 
 QString formatUpdatedEmoteList(const QString &platform,
@@ -152,26 +153,8 @@ QString formatUpdatedEmoteList(const QString &platform,
     return text;
 }
 
-/**
- * Gets the default sound url if the user set one,
- * or the chatterino default ping sound if no url is set.
- */
-QUrl getFallbackHighlightSound()
-{
-    QString path = getSettings()->pathHighlightSound;
-    bool fileExists =
-        !path.isEmpty() && QFileInfo::exists(path) && QFileInfo(path).isFile();
-
-    if (fileExists)
-    {
-        return QUrl::fromLocalFile(path);
-    }
-
-    return QUrl("qrc:/sounds/ping2.wav");
-}
-
-void actuallyTriggerHighlights(const QString &channelName, bool playSound,
-                               const QUrl &customSoundUrl, bool windowAlert)
+void actuallyTriggerHighlights(const QString &channelName, const QUrl &sound,
+                               bool windowAlert)
 {
     if (getApp()->getStreamerMode()->isEnabled() &&
         getSettings()->streamerModeMuteMentions)
@@ -190,14 +173,9 @@ void actuallyTriggerHighlights(const QString &channelName, bool playSound,
     const bool resolveFocus =
         !hasFocus || getSettings()->highlightAlwaysPlaySound;
 
-    if (playSound && resolveFocus)
+    if (!sound.isEmpty() && resolveFocus)
     {
-        QUrl soundUrl = customSoundUrl;
-        if (soundUrl.isEmpty())
-        {
-            soundUrl = getFallbackHighlightSound();
-        }
-        getApp()->getSound()->play(soundUrl);
+        getApp()->getSound()->play(sound);
     }
 
     if (windowAlert)
@@ -736,10 +714,12 @@ MessageBuilder::MessageBuilder(SystemMessageTag, const QString &text,
     this->message().searchText = text;
 }
 
-MessagePtrMut MessageBuilder::makeSystemMessageWithUser(
-    const QString &text, const QString &loginName, const QString &displayName,
-    const MessageColor &userColor, const QTime &time,
-    const Communi::IrcMessage &ircMessage, TwitchChannel *channel)
+std::pair<MessagePtrMut, HighlightAlert>
+    MessageBuilder::makeSystemMessageWithUser(
+        const QString &text, const QString &loginName,
+        const QString &displayName, const MessageColor &userColor,
+        const QTime &time, const Communi::IrcMessage &ircMessage,
+        TwitchChannel *channel)
 {
     MessageBuilder builder;
     builder.emplace<TimestampElement>(time);
@@ -766,12 +746,19 @@ MessagePtrMut MessageBuilder::makeSystemMessageWithUser(
 
     builder.parseMessageTags(tags, channel, true);
 
-    return builder.release();
+    HighlightAlert highlight = builder.parseHighlights(tags, text, {}, channel);
+    if (tags.has("historical"))
+    {
+        // TODO: This logic should probably move into builder.parseHighlights
+        highlight.sound.clear();
+        highlight.windowAlert = false;
+    }
+
+    return {builder.release(), highlight};
 }
 
-MessagePtrMut MessageBuilder::makeSubgiftMessage(Communi::TagsRef tags,
-                                                 const QTime &time,
-                                                 TwitchChannel *channel)
+std::pair<MessagePtrMut, HighlightAlert> MessageBuilder::makeSubgiftMessage(
+    Communi::TagsRef tags, const QTime &time, TwitchChannel *channel)
 {
     auto text = parseTagString(tags.getOrEmpty("system-msg"));
 
@@ -875,13 +862,20 @@ MessagePtrMut MessageBuilder::makeSubgiftMessage(Communi::TagsRef tags,
     }
 
     builder->flags.set(MessageFlag::System);
-    builder->flags.set(MessageFlag::DoNotTriggerNotification);
     builder->messageText = text;
     builder->searchText = text;
 
     builder.parseMessageTags(tags, channel, true);
 
-    return builder.release();
+    HighlightAlert highlight = builder.parseHighlights(tags, "", {}, channel);
+    if (tags.has("historical"))
+    {
+        // TODO: This logic should probably move into builder.parseHighlights
+        highlight.sound.clear();
+        highlight.windowAlert = false;
+    }
+
+    return {builder.release(), highlight};
 }
 
 MessageBuilder::MessageBuilder(TimeoutMessageTag, const QString &timeoutUser,
@@ -942,7 +936,7 @@ MessageBuilder::MessageBuilder(TimeoutMessageTag, const QString &timeoutUser,
 
     this->message().messageText = messageText;
     this->message().searchText = messageText;
-    this->message().serverReceivedTime = time;
+    this->message().timestamp = time;
 }
 
 MessageBuilder::MessageBuilder(TimeoutMessageTag, const QString &username,
@@ -992,7 +986,7 @@ MessageBuilder::MessageBuilder(TimeoutMessageTag, const QString &username,
     this->emplaceSystemTextAndUpdate(text, fullText);
     this->message().messageText = fullText;
     this->message().searchText = fullText;
-    this->message().serverReceivedTime = time;
+    this->message().timestamp = time;
 }
 
 MessageBuilder::MessageBuilder(LiveUpdatesAddEmoteMessageTag /*unused*/,
@@ -1027,7 +1021,7 @@ MessageBuilder::MessageBuilder(LiveUpdatesAddEmoteMessageTag /*unused*/,
     this->message().loginName = actor;
     this->message().messageText = finalText;
     this->message().searchText = finalText;
-    this->message().serverReceivedTime = time;
+    this->message().timestamp = time;
 
     this->message().flags.set(MessageFlag::System);
     this->message().flags.set(MessageFlag::LiveUpdatesAdd);
@@ -1066,7 +1060,7 @@ MessageBuilder::MessageBuilder(LiveUpdatesRemoveEmoteMessageTag /*unused*/,
     this->message().loginName = actor;
     this->message().messageText = finalText;
     this->message().searchText = finalText;
-    this->message().serverReceivedTime = time;
+    this->message().timestamp = time;
 
     this->message().flags.set(MessageFlag::System);
     this->message().flags.set(MessageFlag::LiveUpdatesRemove);
@@ -1315,12 +1309,12 @@ void MessageBuilder::appendOrEmplaceSystemTextAndUpdate(const QString &text,
 void MessageBuilder::triggerHighlights(const Channel *channel,
                                        const HighlightAlert &alert)
 {
-    if (!alert.windowAlert && !alert.playSound)
+    if (!alert.windowAlert && alert.sound.isEmpty())
     {
         return;
     }
-    actuallyTriggerHighlights(channel->getName(), alert.playSound,
-                              alert.customSound, alert.windowAlert);
+    actuallyTriggerHighlights(channel->getName(), alert.sound,
+                              alert.windowAlert);
 }
 
 void MessageBuilder::appendChannelPointRewardMessage(
@@ -1391,14 +1385,21 @@ void MessageBuilder::appendChannelPointRewardMessage(
     this->message().reward = std::make_shared<ChannelPointReward>(reward);
 }
 
-MessagePtr MessageBuilder::makeChannelPointRewardMessage(
-    const ChannelPointReward &reward, bool isMod, bool isBroadcaster)
+std::pair<MessagePtr, HighlightAlert>
+    MessageBuilder::makeChannelPointRewardMessage(
+        const ChannelPointReward &reward, bool isMod, bool isBroadcaster,
+        Channel *channel)
 {
     MessageBuilder builder;
+    builder->channelName = channel->getName();
 
     builder.appendChannelPointRewardMessage(reward, isMod, isBroadcaster);
 
-    return builder.release();
+    QVariantMap tagsMap;
+    Communi::TagsRef tags(tagsMap);
+    auto highlights = builder.parseHighlights(tags, "", {}, channel);
+
+    return {builder.release(), highlights};
 }
 
 MessagePtr MessageBuilder::makeLiveMessage(const HelixMinimalUser &channel,
@@ -1685,12 +1686,14 @@ MessagePtrMut MessageBuilder::makeMissingScopesMessage(
 
 MessagePtrMut MessageBuilder::makeClearChatMessage(const QDateTime &now,
                                                    const QString &actor,
+                                                   const QString &channelName,
                                                    uint32_t count)
 {
     MessageBuilder builder;
     builder.emplace<TimestampElement>(now.time());
+    builder->channelName = channelName;
     builder->count = count;
-    builder->serverReceivedTime = now;
+    builder->timestamp = now;
     builder.message().flags.set(
         MessageFlag::System, MessageFlag::DoNotTriggerNotification,
         MessageFlag::ClearChat, MessageFlag::ModerationAction);
@@ -1842,7 +1845,7 @@ std::pair<MessagePtrMut, HighlightAlert> MessageBuilder::makeIrcMessage(
 
     MessageBuilder builder;
     // calculate timestamp
-    builder->serverReceivedTime = calculateMessageTime(ircMessage);
+    builder->timestamp = calculateMessageTime(ircMessage);
 
     builder.parseUsernameColor(tags, userID);
     builder->userID = userID;
@@ -1909,7 +1912,7 @@ std::pair<MessagePtrMut, HighlightAlert> MessageBuilder::makeIrcMessage(
         builder.parseThread(content, tags, channel, thread, parent);
 
         // add timestamp
-        builder.emplace<TimestampElement>(builder->serverReceivedTime.time());
+        builder.emplace<TimestampElement>(builder->timestamp.time());
 
         bool shouldAddModerationElements = [&] {
             if (senderIsBroadcaster)
@@ -2039,19 +2042,12 @@ std::pair<MessagePtrMut, HighlightAlert> MessageBuilder::makeIrcMessage(
         }
     }
 
-    // highlighting incoming whispers if requested per setting
-    if (args.isReceivedWhisper && getSettings()->highlightInlineWhispers)
-    {
-        builder->flags.set(MessageFlag::HighlightedWhisper);
-        builder->highlightColor =
-            ColorProvider::instance().color(ColorType::Whisper);
-    }
-
     // highlights
-    HighlightAlert highlight = builder.parseHighlights(tags, content, args);
+    HighlightAlert highlight =
+        builder.parseHighlights(tags, content, args, channel);
     if (tags.has("historical"))
     {
-        highlight.playSound = false;
+        highlight.sound.clear();
         highlight.windowAlert = false;
     }
 
@@ -2186,9 +2182,9 @@ void MessageBuilder::addTwitchGif(const QString &id, QStringView originalText)
                 0.5, {200, 200}),
         };
         this->emplace<LinebreakElement>(MessageElementFlag::TwitchGif);
-        this->emplace<ScalingImageElement>(set, MessageElementFlag::TwitchGif)
+        this->emplace<TwitchGifElement>(set, original)
             ->setLink(Link{Link::Url, link})
-            ->setTooltip(original.toHtmlEscaped());
+            ->setTooltip(u"<span>" % original.toHtmlEscaped() % u"</span>");
     }
     else
     {
@@ -2419,8 +2415,7 @@ void MessageBuilder::parseMessageTags(Communi::TagsRef tags,
                         };
 
                     this->emplace<TimestampElement>(
-                            this->message().serverReceivedTime.time(),
-                            timestampFlags)
+                            this->message().timestamp.time(), timestampFlags)
                         ->exhaustiveFlags = true;
 
                     auto displayName = tags.getOrEmpty("display-name");
@@ -2466,7 +2461,7 @@ void MessageBuilder::parseMessageTags(Communi::TagsRef tags,
             }
 
             this->emplace<TimestampElement>(
-                    this->message().serverReceivedTime.time(),
+                    this->message().timestamp.time(),
                     MessageElementFlags{
                         MessageElementFlag::HeaderTimestamp,
                         MessageElementFlag::AnnouncementHeader,
@@ -2513,8 +2508,8 @@ void MessageBuilder::parseMessageTags(Communi::TagsRef tags,
                             MessageElementFlag::Mention,
                         };
 
-            this->emplace<TimestampElement>(
-                    this->message().serverReceivedTime.time(), timestampFlags)
+            this->emplace<TimestampElement>(this->message().timestamp.time(),
+                                            timestampFlags)
                 ->exhaustiveFlags = true;
 
             const auto messageText =
@@ -2735,7 +2730,8 @@ void MessageBuilder::parseThread(const QString &messageContent,
 
 HighlightAlert MessageBuilder::parseHighlights(Communi::TagsRef tags,
                                                const QString &originalMessage,
-                                               const MessageParseArgs &args)
+                                               const MessageParseArgs &args,
+                                               Channel *channel)
 {
     if (getSettings()->isBlacklistedUser(this->message().loginName))
     {
@@ -2743,10 +2739,22 @@ HighlightAlert MessageBuilder::parseHighlights(Communi::TagsRef tags,
         return {};
     }
 
+    auto currentUser = getApp()->getAccounts()->twitch.getCurrent();
     auto badges = parseBadgeTag(tags);
-    auto [highlighted, highlightResult] = getApp()->getHighlights()->check(
-        args, badges, this->message().loginName, originalMessage,
-        this->message().flags, this->message().platform);
+    auto [highlighted, highlightResult] = getApp()->getHighlights()->check({
+        .args = args,
+        .twitchBadges = badges,
+        .senderName = this->message().loginName,
+        .originalMessage = originalMessage,
+        .messageFlags = this->message().flags,
+        .self = this->message().loginName == currentUser->getUserName(),
+        .runContext =
+            filters::RunContext{
+                .message = this->message(),
+                .channel = channel,
+            },
+        .platform = this->message().platform,
+    });
 
     if (!highlighted)
     {
@@ -2764,16 +2772,8 @@ HighlightAlert MessageBuilder::parseHighlights(Communi::TagsRef tags,
         this->message().flags.set(MessageFlag::ShowInMentions);
     }
 
-    auto customSound = [&] {
-        if (highlightResult.customSoundUrl)
-        {
-            return *highlightResult.customSoundUrl;
-        }
-        return QUrl{};
-    }();
     return {
-        .customSound = customSound,
-        .playSound = highlightResult.playSound,
+        .sound = highlightResult.sound,
         .windowAlert = highlightResult.alert,
     };
 }

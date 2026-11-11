@@ -13,7 +13,6 @@ set(test_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/NetworkRequest.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/NetworkResult.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/ChatterSet.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/HighlightPhrase.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/Emojis.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/ExponentialBackoff.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/Helpers.cpp
@@ -38,6 +37,7 @@ set(test_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/XDGHelper.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/XDGDirectory.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/Selection.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/SignalVector.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/TabHistory.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/NotebookTab.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/SplitInput.cpp
@@ -69,7 +69,16 @@ set(test_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/src/BalancedResolverResults.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/UtilSerializeList.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/Aliases.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/Settings.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/HighlightSounds.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/HighlightCommon.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/HighlightOutcome.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/ChannelHelpers.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/ColorInput.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/Helix.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/controllers/plugins/PluginTestApp.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/controllers/plugins/LuaUtilitiesTest.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/Contributors.cpp
     # Add your new file above this line!
 
     ${CMAKE_CURRENT_LIST_DIR}/src/lib/Snapshot.cpp
@@ -133,11 +142,18 @@ endif()
 if(USE_PRECOMPILED_HEADERS AND NOT APPLE)
     message(STATUS "Reusing precompiled headers for tests from chatterino-lib")
     target_precompile_headers(${PROJECT_NAME} REUSE_FROM chatterino-lib)
+    if (NOT MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        # I know I'm missing something, but CMake doesn't want to
+        # propagate the -pthread flag from the dependencies to this target.
+        # Just force it to do so.
+        target_compile_options(${PROJECT_NAME} PRIVATE -pthread)
+    endif()
 endif()
 
 set_target_properties(${PROJECT_NAME}
     PROPERTIES
     AUTORCC ON
+    AUTOMOC ON
     )
 
 if (CHATTERINO_STATIC_QT_BUILD)
@@ -147,4 +163,6 @@ if (CHATTERINO_STATIC_QT_BUILD)
     )
 endif ()
 
-gtest_discover_tests(${PROJECT_NAME})
+gtest_discover_tests(${PROJECT_NAME}
+    DISCOVERY_MODE PRE_TEST
+)

@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Tinyrino"
-#define MyAppVersion "2.5.5.5"
+#define MyAppVersion "2.5.6.1"
 #define MyAppPublisher "shungites.casa"
 #define MyAppURL "https://www.chatterino.com"
 #define MyAppExeName "chatterino.exe"
