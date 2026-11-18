@@ -809,6 +809,29 @@ public:
     BoolSetting preferTinyRoleBadgesOverCustom = {
         "/tinyemotes/preferTinyRoleBadgesOverCustom", false};
 
+    // Embedded media
+    BoolSetting mediaPreviewEnabled = {"/tinyrino/mediaPreview/enabled",
+                                       false};
+    BoolSetting mediaPreviewOpenGraph = {"/tinyrino/mediaPreview/openGraph",
+                                         true};
+    BoolSetting mediaPreviewDirectMedia = {
+        "/tinyrino/mediaPreview/directMedia", true};
+    BoolSetting mediaPreviewVideo = {"/tinyrino/mediaPreview/video", true};
+    BoolSetting mediaPreviewAudio = {"/tinyrino/mediaPreview/audio", true};
+    BoolSetting mediaPreviewAutoplayVideo = {
+        "/tinyrino/mediaPreview/autoplayVideo", false};
+    BoolSetting mediaPreviewAutoplayAnimated = {
+        "/tinyrino/mediaPreview/autoplayAnimated", true};
+    IntSetting mediaPreviewMaxSizeMb = {"/tinyrino/mediaPreview/maxSizeMb",
+                                        10};
+    BoolSetting mediaPreviewAtEnd = {"/tinyrino/mediaPreview/atEnd", false};
+    BoolSetting mediaPreviewVideoSound = {"/tinyrino/mediaPreview/videoSound",
+                                          true};
+    QStringSetting mediaPreviewWhitelist = {
+        "/tinyrino/mediaPreview/whitelist", ""};
+    QStringSetting mediaPreviewBlacklist = {
+        "/tinyrino/mediaPreview/blacklist", ""};
+
     // Encryption
     BoolSetting enableMessageEncryption = {
         "/encryption/enableMessageEncryption", false};

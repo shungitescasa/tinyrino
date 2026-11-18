@@ -12,11 +12,13 @@
 #include "debug/Benchmark.hpp"
 #include "messages/Emote.hpp"
 #include "messages/Image.hpp"
+#include "messages/layouts/MediaPreviewLayoutElement.hpp"
 #include "messages/layouts/MessageLayoutContainer.hpp"
 #include "messages/layouts/MessageLayoutContext.hpp"
 #include "messages/layouts/MessageLayoutElement.hpp"
 #include "messages/Message.hpp"
 #include "providers/emoji/Emojis.hpp"
+#include "providers/mediapreview/MediaPreview.hpp"
 #include "providers/twitch/TwitchEmotes.hpp"
 #include "singletons/Settings.hpp"
 #include "singletons/Theme.hpp"
@@ -1244,7 +1246,76 @@ void LinkElement::addToContainer(MessageLayoutContainer &container,
 {
     this->words_ =
         getSettings()->lowercaseDomains ? this->lowercase_ : this->original_;
+
+    if (this->matchesFlags(ctx.flags))
+    {
+        if (MediaPreviewManager::previewsAtEnd())
+        {
+            // The preview is added at the end of the message (see
+            // addMediaPreviewAtEnd) and replaces the link. Links without a
+            // (displayable) preview stay in place.
+            if (this->updateMediaPreview() &&
+                canShowMediaPreview(this->mediaPreview_))
+            {
+                return;
+            }
+        }
+        else if (this->tryAddMediaPreview(container))
+        {
+            return;
+        }
+    }
+
     TextElement::addToContainer(container, ctx);
+}
+
+void LinkElement::addMediaPreviewAtEnd(MessageLayoutContainer &container,
+                                       const MessageLayoutContext &ctx)
+{
+    if (!this->matchesFlags(ctx.flags) || !this->updateMediaPreview())
+    {
+        return;
+    }
+
+    addMediaPreviewToContainer(*this, this->mediaPreview_,
+                               this->words_.join(' '), container);
+}
+
+bool LinkElement::updateMediaPreview()
+{
+    const auto &url = this->linkInfo_.originalUrl();
+    if (!MediaPreviewManager::shouldPreview(url))
+    {
+        return false;
+    }
+
+    auto &manager = MediaPreviewManager::instance();
+    if (!this->mediaPreview_ ||
+        this->mediaPreview_->generation() != manager.generation() ||
+        this->mediaPreview_->shouldRetry())
+    {
+        this->mediaPreview_ = manager.get(url);
+    }
+    return this->mediaPreview_ != nullptr;
+}
+
+void LinkElement::loadMediaPreview()
+{
+    if (this->mediaPreview_ && !this->mediaPreview_->isResolved())
+    {
+        MediaPreviewManager::instance().ensureResolving(this->mediaPreview_);
+    }
+}
+
+bool LinkElement::tryAddMediaPreview(MessageLayoutContainer &container)
+{
+    if (!this->updateMediaPreview())
+    {
+        return false;
+    }
+
+    return addMediaPreviewToContainer(*this, this->mediaPreview_,
+                                      this->words_.join(' '), container);
 }
 
 Link LinkElement::getLink() const

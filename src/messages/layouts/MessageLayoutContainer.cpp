@@ -154,6 +154,20 @@ void MessageLayoutContainer::addElementNoLineBreak(
     this->addElement(element, false, -2);
 }
 
+void MessageLayoutContainer::addSpacing(qreal width)
+{
+    this->currentX_ += width;
+}
+
+MessageLayoutElement *MessageLayoutContainer::lastElement() const
+{
+    if (this->elements_.empty())
+    {
+        return nullptr;
+    }
+    return this->elements_.back().get();
+}
+
 void MessageLayoutContainer::breakLine()
 {
     if (this->lineContainsRTL_ || this->isRTL())

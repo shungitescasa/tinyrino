@@ -53,6 +53,7 @@ class FilterSet;
 using FilterSetPtr = std::shared_ptr<FilterSet>;
 
 class LinkInfo;
+class MediaPreview;
 
 enum class PauseReason {
     Mouse,
@@ -441,6 +442,17 @@ private:
 
     // Mouse event variables
     bool isLeftMouseDown_ = false;
+
+    bool handleMediaPress(const MessageLayoutElement *element,
+                          QPointF relativePos, QPointF widgetPos);
+
+    /// The video/audio whose seek bar is being dragged
+    std::shared_ptr<MediaPreview> mediaSeekPreview_;
+    /// Position & width of the dragged seek bar (in widget coordinates)
+    qreal mediaSeekLeft_ = 0;
+    qreal mediaSeekWidth_ = 1;
+    /// True if the current left press was handled by a media player
+    bool mediaPressConsumed_ = false;
     bool isRightMouseDown_ = false;
     bool isDoubleClick_ = false;
     QPointF lastLeftPressPosition_;

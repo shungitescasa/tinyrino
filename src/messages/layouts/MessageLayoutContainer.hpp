@@ -69,6 +69,16 @@ struct MessageLayoutContainer {
     void breakLine();
 
     /**
+     * Adds horizontal space (in pixels) before the next element
+     */
+    void addSpacing(qreal width);
+
+    /**
+     * Returns the last element that was added (or nullptr)
+     */
+    MessageLayoutElement *lastElement() const;
+
+    /**
      * Paint the elements in this message
      */
     void paintElements(QPainter &painter, const MessagePaintContext &ctx) const;

@@ -410,6 +410,8 @@ set(SOURCE_FILES
         messages/layouts/MessageLayoutContainer.hpp
         messages/layouts/MessageLayoutContext.cpp
         messages/layouts/MessageLayoutContext.hpp
+        messages/layouts/MediaPreviewLayoutElement.cpp
+        messages/layouts/MediaPreviewLayoutElement.hpp
         messages/layouts/MessageLayoutElement.cpp
         messages/layouts/MessageLayoutElement.hpp
         messages/search/AuthorPredicate.cpp
@@ -504,6 +506,9 @@ set(SOURCE_FILES
         providers/links/LinkInfo.hpp
         providers/links/LinkResolver.cpp
         providers/links/LinkResolver.hpp
+
+        providers/mediapreview/MediaPreview.cpp
+        providers/mediapreview/MediaPreview.hpp
 
         providers/liveupdates/BasicPubSubClient.hpp
         providers/liveupdates/BasicPubSubListener.hpp
@@ -1110,6 +1115,14 @@ endif()
 if (CHATTERINO_SPELLCHECK)
     target_compile_definitions(${LIBRARY_PROJECT} PUBLIC CHATTERINO_WITH_SPELLCHECK)
     target_link_libraries(${LIBRARY_PROJECT} PUBLIC hunspell::hunspell)
+endif()
+
+if (TARGET Qt${MAJOR_QT_VERSION}::Multimedia)
+    message(STATUS "Embedded media: video/audio playback enabled (Qt Multimedia)")
+    target_link_libraries(${LIBRARY_PROJECT} PUBLIC Qt${MAJOR_QT_VERSION}::Multimedia)
+    target_compile_definitions(${LIBRARY_PROJECT} PUBLIC TINYRINO_WITH_MULTIMEDIA)
+else()
+    message(STATUS "Embedded media: Qt Multimedia not found, video/audio playback disabled")
 endif()
 
 if (CHATTERINO_ALLOW_PRIVATE_QT_API)

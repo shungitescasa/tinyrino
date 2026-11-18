@@ -30,6 +30,7 @@ class MessageLayoutElement;
 struct MessageLayoutContext;
 
 class Image;
+class MediaPreview;
 using ImagePtr = std::shared_ptr<Image>;
 
 struct Emote;
@@ -435,6 +436,11 @@ public:
 
     Link getLink() const override;
 
+    void addMediaPreviewAtEnd(MessageLayoutContainer &container,
+                              const MessageLayoutContext &ctx);
+
+    void loadMediaPreview();
+
     [[nodiscard]] LinkInfo *linkInfo()
     {
         return &this->linkInfo_;
@@ -454,7 +460,16 @@ public:
     std::unique_ptr<MessageElement> clone() const override;
 
 private:
+    /// @brief Tries to replace the link with its media preview
+    ///
+    /// @returns true if the preview was added to the container
+    bool tryAddMediaPreview(MessageLayoutContainer &container);
+    /// Updates #mediaPreview_ - returns false if no preview should be shown
+    bool updateMediaPreview();
+
     LinkInfo linkInfo_;
+    /// Lazily resolved when the link is laid out with media previews enabled
+    std::shared_ptr<MediaPreview> mediaPreview_;
     // these are implicitly shared
     QStringList lowercase_;
     QStringList original_;

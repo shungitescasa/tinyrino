@@ -14,6 +14,8 @@
 #include "debug/Benchmark.hpp"
 #include "messages/Emote.hpp"
 #include "messages/Image.hpp"
+#include "messages/layouts/MediaPreviewLayoutElement.hpp"
+#include "providers/mediapreview/MediaPreview.hpp"
 #include "messages/layouts/MessageLayout.hpp"
 #include "messages/layouts/MessageLayoutContext.hpp"
 #include "messages/layouts/MessageLayoutElement.hpp"
@@ -2083,6 +2085,7 @@ void ChannelView::enterEvent(QEnterEvent * /*event*/)
 void ChannelView::leaveEvent(QEvent * /*event*/)
 {
     this->tooltipWidget_->hide();
+    updateMediaPreviewHover(nullptr);
 
     this->unpause(PauseReason::Mouse);
 }
@@ -2152,6 +2155,16 @@ void ChannelView::mouseMoveEvent(QMouseEvent *event)
         return;
     }
 
+    if (this->mediaSeekPreview_)
+    {
+        // dragging the seek bar of a video/audio preview
+        MediaPreviewManager::instance().seek(
+            this->mediaSeekPreview_,
+            (event->position().x() - this->mediaSeekLeft_) /
+                this->mediaSeekWidth_);
+        return;
+    }
+
     /// Pause on hover
     if (float pauseTime = getSettings()->pauseOnHoverDuration;
         pauseTime > 0.001F)
@@ -2173,6 +2186,7 @@ void ChannelView::mouseMoveEvent(QMouseEvent *event)
     {
         this->setCursor(Qt::ArrowCursor);
         this->tooltipWidget_->hide();
+        updateMediaPreviewHover(nullptr);
         return;
     }
 
@@ -2184,6 +2198,9 @@ void ChannelView::mouseMoveEvent(QMouseEvent *event)
     // check for word underneath cursor
     const MessageLayoutElement *hoverLayoutElement =
         layout->getElementAt(relativePos);
+
+    // play video/audio previews while they're hovered
+    updateMediaPreviewHover(hoverLayoutElement);
 
     // selecting single characters
     if (this->isLeftMouseDown_)
@@ -2233,8 +2250,14 @@ void ChannelView::mouseMoveEvent(QMouseEvent *event)
         (scalingImageElement != nullptr &&
          element->getFlags().has(MessageElementFlag::TwitchGif));
 
+    // Embedded media always shows its title (even without link info)
+    const bool isEmbeddedMedia =
+        dynamic_cast<const MediaPreviewLayoutElement *>(hoverLayoutElement) !=
+        nullptr;
+
     if (element->getTooltip().isEmpty() ||
-        (isLinkValid && !isEmoteOrTwitchGif && !getSettings()->linkInfoTooltip))
+        (isLinkValid && !isEmoteOrTwitchGif && !isEmbeddedMedia &&
+         !getSettings()->linkInfoTooltip))
     {
         this->tooltipWidget_->hide();
     }
@@ -2330,6 +2353,21 @@ void ChannelView::mouseMoveEvent(QMouseEvent *event)
                     element->getTooltip(), getTooltipScale(scale)));
             }
         }
+        else if (const auto *media =
+                     dynamic_cast<const MediaPreviewLayoutElement *>(
+                         hoverLayoutElement))
+        {
+            // Embedded media shows its title and link
+            const auto &link = hoverLayoutElement->getLink().value;
+            const auto &title = media->preview()->title();
+            this->tooltipWidget_->setOne(TooltipEntry{
+                .image = nullptr,
+                .text = title.isEmpty()
+                            ? link.toHtmlEscaped()
+                            : u"<b>" % title.toHtmlEscaped() % u"</b><br>" %
+                                  link.toHtmlEscaped(),
+            });
+        }
         else if (auto *linkElement = dynamic_cast<LinkElement *>(element))
         {
             auto thumbnailSize = getSettings()->thumbnailSize;
@@ -2408,6 +2446,15 @@ void ChannelView::mousePressEvent(QMouseEvent *event)
                 this->disableScrolling();
             }
 
+            if (!layout->flags.has(MessageLayoutFlag::Collapsed) &&
+                this->handleMediaPress(layout->getElementAt(relativePos),
+                                       relativePos, event->position()))
+            {
+                // Players don't start selections or open links
+                this->mediaPressConsumed_ = true;
+                return;
+            }
+
             this->lastLeftPressPosition_ = event->globalPosition();
             this->isLeftMouseDown_ = true;
 
@@ -2476,6 +2523,13 @@ void ChannelView::mousePressEvent(QMouseEvent *event)
 
 void ChannelView::mouseReleaseEvent(QMouseEvent *event)
 {
+    if (event->button() == Qt::LeftButton && this->mediaPressConsumed_)
+    {
+        this->mediaPressConsumed_ = false;
+        this->mediaSeekPreview_.reset();
+        return;
+    }
+
     // find message
     this->queueLayout();
 
@@ -2641,6 +2695,35 @@ void ChannelView::mouseReleaseEvent(QMouseEvent *event)
     this->handleMouseClick(event, hoverLayoutElement, layout);
 
     this->update();
+}
+
+bool ChannelView::handleMediaPress(const MessageLayoutElement *element,
+                                   QPointF relativePos, QPointF widgetPos)
+{
+    const auto *player = asMediaPlayer(element);
+    if (player == nullptr)
+    {
+        return false;
+    }
+
+    auto &manager = MediaPreviewManager::instance();
+    if (player->isOnSeekBar(relativePos))
+    {
+        auto bar = player->seekBarRect();
+        // remember the bar in widget coordinates for dragging
+        this->mediaSeekLeft_ = widgetPos.x() - (relativePos.x() - bar.left());
+        this->mediaSeekWidth_ = std::max(bar.width(), 1.0);
+        this->mediaSeekPreview_ = player->preview();
+        manager.seek(player->preview(),
+                     (relativePos.x() - bar.left()) / this->mediaSeekWidth_);
+    }
+    else
+    {
+        manager.togglePlayback(player->preview());
+    }
+
+    this->tooltipWidget_->hide();
+    return true;
 }
 
 void ChannelView::handleMouseClick(QMouseEvent *event,
@@ -3222,6 +3305,15 @@ void ChannelView::mouseDoubleClickEvent(QMouseEvent *event)
 
     if (!this->tryGetMessageAt(event->pos(), layout, relativePos, messageIndex))
     {
+        return;
+    }
+
+    // The second click of a double click on a player is a normal click
+    if (!layout->flags.has(MessageLayoutFlag::Collapsed) &&
+        this->handleMediaPress(layout->getElementAt(relativePos), relativePos,
+                               event->position()))
+    {
+        this->mediaPressConsumed_ = true;
         return;
     }
 

@@ -13,6 +13,7 @@
 #include "messages/MessageElement.hpp"
 #include "messages/Selection.hpp"
 #include "providers/colors/ColorProvider.hpp"
+#include "providers/mediapreview/MediaPreview.hpp"
 #include "singletons/Settings.hpp"
 #include "singletons/StreamerMode.hpp"
 #include "singletons/WindowManager.hpp"
@@ -155,6 +156,10 @@ void MessageLayout::actuallyLayout(const MessageLayoutContext &ctx)
     this->container_.beginLayout(ctx.width, this->scale_, this->imageScale_,
                                  messageFlags);
 
+    // Media previews of links can be shown in a row at the end of a message
+    const bool mediaAtEnd = MediaPreviewManager::previewsAtEnd();
+    std::vector<LinkElement *> previewLinks;
+
     for (const auto &element : this->message_->elements)
     {
         if (hideModerated && this->message_->flags.has(MessageFlag::Disabled))
@@ -205,6 +210,19 @@ void MessageLayout::actuallyLayout(const MessageLayoutContext &ctx)
         }
 
         element->addToContainer(this->container_, ctx);
+
+        if (mediaAtEnd)
+        {
+            if (auto *link = dynamic_cast<LinkElement *>(element.get()))
+            {
+                previewLinks.push_back(link);
+            }
+        }
+    }
+
+    for (auto *link : previewLinks)
+    {
+        link->addMediaPreviewAtEnd(this->container_, ctx);
     }
 
     if (this->height_ != this->container_.getHeight())
@@ -321,6 +339,18 @@ MessagePaintResult MessageLayout::paint(const MessagePaintContext &ctx)
     }
 
     this->bufferValid_ = true;
+
+    // Embedded media is only loaded for messages that are actually visible
+    if (MediaPreviewManager::existingInstance() != nullptr)
+    {
+        for (const auto &element : this->message_->elements)
+        {
+            if (auto *link = dynamic_cast<LinkElement *>(element.get()))
+            {
+                link->loadMediaPreview();
+            }
+        }
+    }
 
     return result;
 }

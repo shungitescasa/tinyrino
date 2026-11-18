@@ -5,6 +5,7 @@ Tinyrino is a fork of Chatterino7 (which is a fork of Chatterino 2). This fork s
 
 ### Features of Tinyrino
 
+- Embedded media in chat
 - Message encryption
 - TinyEmotes support
 
@@ -17,8 +18,9 @@ Tinyrino is a fork of Chatterino7 (which is a fork of Chatterino 2). This fork s
 
 ### Screenshots
 
-<img src="screenshot_1.png" width="40%" />
-<img src="screenshot_2.png" width="40%" />
+<img src="screenshot_1.png" width="30%" />
+<img src="screenshot_2.png" width="30%" />
+<img src="screenshot_3.webp" width="30%">
 
 ### Downloads
 

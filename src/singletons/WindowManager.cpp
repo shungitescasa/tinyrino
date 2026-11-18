@@ -180,6 +180,21 @@ WindowManager::WindowManager(const Args &appArgs_, const Paths &paths,
         settings.streamerModeHideModActions);
     this->forceLayoutChannelViewsListener.add(
         settings.streamerModeHideRestrictedUsers);
+    this->forceLayoutChannelViewsListener.add(settings.mediaPreviewEnabled);
+    this->forceLayoutChannelViewsListener.add(settings.mediaPreviewOpenGraph);
+    this->forceLayoutChannelViewsListener.add(settings.mediaPreviewDirectMedia);
+    this->forceLayoutChannelViewsListener.add(settings.mediaPreviewVideo);
+    this->forceLayoutChannelViewsListener.add(settings.mediaPreviewAudio);
+    this->forceLayoutChannelViewsListener.add(
+        settings.mediaPreviewAutoplayVideo);
+    this->forceLayoutChannelViewsListener.add(
+        settings.mediaPreviewAutoplayAnimated);
+    this->forceLayoutChannelViewsListener.add(settings.mediaPreviewAtEnd);
+    this->forceLayoutChannelViewsListener.add(settings.mediaPreviewMaxSizeMb);
+    this->forceLayoutChannelViewsListener.add(settings.mediaPreviewWhitelist);
+    this->forceLayoutChannelViewsListener.add(settings.mediaPreviewBlacklist);
+    this->forceLayoutChannelViewsListener.add(
+        settings.streamerModeHideLinkThumbnails);
     this->forceLayoutChannelViewsListener.add(this->themes.updated);
     this->forceLayoutChannelViewsListener.add(fonts.fontChanged);
 
