@@ -13,6 +13,8 @@ class Chatterino(ConanFile):
         "openssl*:shared": True,
         "boost*:header_only": True,
         "hunspell*:shared": False,
+        # dav1d 1.5.4 doesn't build with MSVC 14.5 (fixed in 1.5.5, not on conan center yet)
+        "libavif*:with_decoder": "aom",
     }
     options = {
         "with_benchmark": [True, False],
